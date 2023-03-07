@@ -39,6 +39,7 @@ struct color clr_main, clr_text, clr_placeholder;
 struct keyhold *keyhold_root = NULL;
 
 int main(int argc, char *argv[]) {
+	// TODO read colors from kallos config file
 	clr_main = hex2rgb(0xAB8449);
 	clr_placeholder = hex2rgb(0x999999);
 	clr_text = hex2rgb(0x313131);
@@ -63,10 +64,10 @@ int main(int argc, char *argv[]) {
 
 	zxdg_toplevel_decoration_v1_set_mode(a->decos, 1);
 
+	bool first = true;
 	long last = millis();
-    while (state->root_surface != NULL && 
-		wl_display_dispatch(state->wl_display) &&
-		running == true) {
+    while (state->root_surface != NULL && running == true) {
+		wl_display_dispatch(state->wl_display);
 
 		long milli = millis();
 		long delta = milli - last;
@@ -82,13 +83,22 @@ int main(int argc, char *argv[]) {
 				}
 			}
 		}
-	};
-	client_state_destroy(state);	
+
+		// If there is no active input let's bounce out of here!
+		if (!first && state->active_surface_pointer == NULL && 
+			state->active_surface_keyboard == NULL) {
+			//printf("not active\n");
+			running = false;
+		}
+		first = false;
+	}
+	client_state_destroy(state);
 
 	if (strlen(input_str) > 0) {
 		printf("running command! %s\n", input_str);
-		run_cmd(input_str);
+		return run_cmd(input_str);
 	}
+	printf("exit\n");
     return 0;
 }
 
@@ -103,19 +113,33 @@ void on_draw(struct surface_state *state, unsigned char *data) {
 	cairo_surface_destroy(csurf);
 }
 
+#define M_PI 3.14159265358979323846
+void rounded_rect(cairo_t *cr, double x, double y, double width, double height, double r) {
+	// TODO radius is weird, need to look at how it works
+	double radius = height / r;
+	double degrees = M_PI / 180.0;
+
+	// Create the path 
+	cairo_new_sub_path (cr);
+	cairo_arc (cr, x + width - radius, y + radius, radius, -90 * degrees, 0 * degrees);
+	cairo_arc (cr, x + width - radius, y + height - radius, radius, 0 * degrees, 90 * degrees);
+	cairo_arc (cr, x + radius, y + height - radius, radius, 90 * degrees, 180 * degrees);
+	cairo_arc (cr, x + radius, y + radius, radius, 180 * degrees, 270 * degrees);
+	cairo_close_path (cr);
+
+	// Fill & stroke path	
+	cairo_set_source_rgb(cr, 1, 1, 1);
+	cairo_fill_preserve(cr);
+	cairo_set_source_rgb(cr, clr_main.r, clr_main.g, clr_main.b);
+	cairo_set_line_width(cr, 4.0);
+	cairo_stroke(cr);
+}
+
 void do_cairo(struct surface_state *state, cairo_t *ctx) {
 	int w = state->width;
 	int h = state->height;
 
-	cairo_set_source_rgb(ctx, 1, 1, 1);
-	cairo_rectangle(ctx, 4, 4, w - 8, h - 8);
-	cairo_fill(ctx);
-
-	cairo_set_line_join(ctx, CAIRO_LINE_JOIN_ROUND);
-	cairo_set_line_width(ctx, 4);
-	cairo_set_source_rgb(ctx, clr_main.r, clr_main.g, clr_main.b);
-	cairo_rectangle(ctx, 2, 2, w-4, h-4);
-	cairo_stroke(ctx);
+	rounded_rect(ctx, 2, 2, w-4, h-4, 18);
 
 	// Draw an svg image
 	RsvgRectangle vp = {
@@ -132,6 +156,8 @@ void do_cairo(struct surface_state *state, cairo_t *ctx) {
 		cairo_set_source_rgb(ctx, clr_text.r, clr_text.g, clr_text.b);
 		do_cairo_text(ctx, input_str, 84, 46); //"Hello world! How are we party people, good?");
 	}
+
+	// TODO draw a blinking carrot
 }
 
 void do_cairo_text(cairo_t *cr, const char *str, int origin_x, int origin_y) {
@@ -140,6 +166,9 @@ void do_cairo_text(cairo_t *cr, const char *str, int origin_x, int origin_y) {
 	char letter[2];
 	int x = 0;
 	int len = strlen(str);
+
+	cairo_select_font_face(cr, "Noto Sans", CAIRO_FONT_SLANT_NORMAL, 
+		CAIRO_FONT_WEIGHT_BOLD);
 
 	cairo_set_font_size(cr, 20);	
 	cairo_font_extents(cr, &fe);

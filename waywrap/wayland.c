@@ -102,6 +102,7 @@ struct client_state *client_state_new() {
 
 void client_state_destroy(struct client_state *state) {
 	struct surface_state *next, *tmp;
+	tmp = NULL;
 	next = state->root_surface;
 	while (next != NULL) {
 		tmp = next->next;
@@ -128,6 +129,7 @@ surface_state_new(struct client_state *client_state, const char *title,
 		parent->next = state;
 	}
 	state->client = client_state;
+	state->next = NULL;
 	state->pointer = NULL;
 	state->width = width;
 	state->height = height;
