@@ -135,11 +135,19 @@ void rounded_rect(cairo_t *cr, double x, double y, double width, double height, 
 	cairo_stroke(cr);
 }
 
+void rect(cairo_t *cr, double x, double y, double width, double height) {
+	cairo_new_sub_path(cr);
+	cairo_rectangle(cr, x, y, width, height);
+	cairo_set_source_rgb(cr, 1, 1, 1);
+	cairo_fill(cr);
+}
+
 void do_cairo(struct surface_state *state, cairo_t *ctx) {
 	int w = state->width;
 	int h = state->height;
 
-	rounded_rect(ctx, 2, 2, w-4, h-4, 18);
+	//rounded_rect(ctx, 2, 2, w-4, h-4, 18);
+	rect(ctx, 0, 0, w, h);
 
 	// Draw an svg image
 	RsvgRectangle vp = {
